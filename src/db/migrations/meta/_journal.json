@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1788582186733,
+      "tag": "0000_polite_bedlam",
+      "breakpoints": true
+    }
+  ]
+}
