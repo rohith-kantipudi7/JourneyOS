@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { ContextNode } from '@/types';
 import type { GraphResponse } from '@/types/api';
@@ -23,7 +23,7 @@ const COLUMNS: ReadonlyArray<{ readonly title: string; readonly types: readonly 
   { title: 'Prior journeys', types: [] },
 ];
 
-const COLUMN_GAP = 96;
+const COLUMN_GAP = 68;
 const ROW_GAP = 26;
 const PADDING = 28;
 const COLUMN_STRIDE = NODE_WIDTH + COLUMN_GAP;
@@ -82,10 +82,13 @@ function useLayout(graph: GraphResponse) {
 
     const byId = new Map(placed.map((entry) => [entry.node.id, entry]));
 
+    // Only reserve width for columns that actually hold nodes.
+    const lastColumn = Math.max(...grouped.keys(), 0);
+
     return {
       placed,
       byId,
-      width: PADDING * 2 + COLUMNS.length * COLUMN_STRIDE,
+      width: PADDING * 2 + (lastColumn + 1) * COLUMN_STRIDE - COLUMN_GAP,
       height: PADDING * 2 + tallest * ROW_STRIDE,
       columnCount: grouped.size,
     };
@@ -102,21 +105,44 @@ interface ContextGraphProps {
 
 export function ContextGraph({ graph, selectedNodeId, onSelectNode, compact = false }: ContextGraphProps) {
   const layout = useLayout(graph);
-  const [zoom, setZoom] = useState(compact ? 0.62 : 0.85);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState(0.85);
+  // null means "follow the fit"; a number is an explicit user override.
+  const [override, setOverride] = useState<number | null>(null);
+  const zoom = override ?? fit;
+
+  const measure = useCallback(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const available = compact ? 8 : 16;
+    const next = Math.min(
+      1,
+      (viewport.clientWidth - available) / layout.width,
+      (viewport.clientHeight - available) / layout.height,
+    );
+    setFit(Math.max(0.3, Number.isFinite(next) ? next : 0.85));
+  }, [compact, layout.width, layout.height]);
+
+  useEffect(() => {
+    measure();
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [measure]);
 
   return (
-    <div className="absolute inset-0 overflow-auto">
+    <div ref={viewportRef} className="absolute inset-0 flex items-center justify-center overflow-auto">
+      {/* Holds the post-scale footprint so the graph centres when it fits and scrolls when it does not. */}
       <div
-        className="relative origin-top-left"
-        style={{
-          width: layout.width,
-          height: layout.height,
-          transform: `scale(${zoom})`,
-          // Reserve the scaled footprint so scrolling reaches every node.
-          marginBottom: layout.height * (zoom - 1),
-          marginRight: layout.width * (zoom - 1),
-        }}
+        className="relative shrink-0"
+        style={{ width: layout.width * zoom, height: layout.height * zoom }}
       >
+        <div
+          className="absolute top-0 left-0 origin-top-left"
+          style={{ width: layout.width, height: layout.height, transform: `scale(${zoom})` }}
+        >
         <svg width={layout.width} height={layout.height} className="pointer-events-none absolute inset-0">
           <defs>
             {Object.entries(EDGE_TONE).map(([type, colour]) => (
@@ -187,6 +213,7 @@ export function ContextGraph({ graph, selectedNodeId, onSelectNode, compact = fa
             onSelect={onSelectNode}
           />
         ))}
+        </div>
       </div>
 
       {!compact && (
@@ -205,7 +232,7 @@ export function ContextGraph({ graph, selectedNodeId, onSelectNode, compact = fa
 
           <div className="border-border bg-card/90 absolute right-2 bottom-2 flex items-center gap-1 rounded-md border px-1.5 py-1 backdrop-blur">
             <button
-              onClick={() => setZoom((current) => Math.max(0.35, current - 0.15))}
+              onClick={() => setOverride(Math.max(0.3, zoom - 0.15))}
               className="text-muted-foreground px-1.5 text-sm leading-none hover:text-white"
               aria-label="Zoom out"
             >
@@ -215,17 +242,17 @@ export function ContextGraph({ graph, selectedNodeId, onSelectNode, compact = fa
               {Math.round(zoom * 100)}%
             </span>
             <button
-              onClick={() => setZoom((current) => Math.min(1.6, current + 0.15))}
+              onClick={() => setOverride(Math.min(1.6, zoom + 0.15))}
               className="text-muted-foreground px-1.5 text-sm leading-none hover:text-white"
               aria-label="Zoom in"
             >
               +
             </button>
             <button
-              onClick={() => setZoom(0.85)}
+              onClick={() => setOverride(null)}
               className="text-muted-foreground ml-1 text-[10px] hover:text-white"
             >
-              reset
+              fit
             </button>
           </div>
         </>

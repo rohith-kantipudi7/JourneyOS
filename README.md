@@ -6,6 +6,8 @@ An event-driven, trust-governed orchestration runtime. AI proposes, deterministi
 
 Built for **Beyond GenAI — Crafting the Future of Customer-Facing Enterprise Applications** (Amadeus × Contentstack).
 
+![Journey Studio — the operator view: live context graph, event simulator, trust verdict, and audit ledger](docs/assets/screen-studio.png)
+
 ---
 
 ## The problem
@@ -72,6 +74,24 @@ JourneyOS runs **end-to-end with zero credentials**. Every missing integration h
 | **Audit Viewer** (`/audit`) | Full trace, filterable by control-loop stage |
 
 All four stay on the same journey; the context graph is present on every one.
+
+### Traveler
+
+What the customer sees. Ranked options, each with the reasoning that produced it, and a plain statement of whether anything is required of them.
+
+![Traveler screen showing ranked recovery options with accept and decline controls](docs/assets/screen-traveler.png)
+
+### Decision Inspector
+
+Why this option won. Per-dimension scores, the planner that produced them, the trust evaluation, and the weighted risk factors behind the verdict.
+
+![Decision Inspector showing per-dimension option scores alongside the trust evaluation and weighted risk factors](docs/assets/screen-inspector.png)
+
+### Audit Viewer
+
+The append-only ledger, filterable by control-loop stage, with the provenance of every input the decision used.
+
+![Audit Viewer showing the full control-loop trace with stage filters and provenance](docs/assets/screen-audit.png)
 
 ---
 
